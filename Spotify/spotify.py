@@ -1,14 +1,21 @@
+import os
+
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 import yt_dlp
-import os
 
 
-SPOTIPY_CLIENT_ID = "ef3e82c987064d3a95f06f9882fc5605"
-SPOTIPY_CLIENT_SECRET = "af76c7c34b9647caac9192011407e7c4"
-SPOTIPY_REDIRECT_URI = "http://localhost:5000/callback"
+SPOTIPY_CLIENT_ID = os.getenv("SPOTIPY_CLIENT_ID")
+SPOTIPY_CLIENT_SECRET = os.getenv("SPOTIPY_CLIENT_SECRET")
+SPOTIPY_REDIRECT_URI = os.getenv(
+    "SPOTIPY_REDIRECT_URI", "http://localhost:5000/callback"
+)
 SCOPE = "user-library-read"
-error = []
+
+if not SPOTIPY_CLIENT_ID or not SPOTIPY_CLIENT_SECRET:
+    raise RuntimeError(
+        "Set SPOTIPY_CLIENT_ID and SPOTIPY_CLIENT_SECRET as environment variables."
+    )
 
 sp = spotipy.Spotify(
     auth_manager=SpotifyOAuth(
@@ -19,10 +26,16 @@ sp = spotipy.Spotify(
     )
 )
 
+output_path = os.getenv(
+    "SPOTIFY_DOWNLOAD_DIR",
+    os.path.join(os.path.expanduser("~"), "Downloads", "SpotiMusic"),
+)
+
 
 def get_liked_songs():
     liked_songs = []
-    results = sp.current_user_saved_tracks(limit=50)  # Adjust limit as needed
+    results = sp.current_user_saved_tracks(limit=50)
+
     while results:
         for item in results["items"]:
             track = item["track"]
@@ -38,29 +51,24 @@ def get_liked_songs():
     return liked_songs
 
 
-output_path = "C:\\Users\\vicke\\Downloads\\SpotiMusic\\"
-
-
 def download_song(search_query):
     os.makedirs(output_path, exist_ok=True)
 
     ydl_opts = {
         "format": "bestaudio/best",
-        "extractaudio": True,  # Download only audio
-        "audioformat": "mp3",  # Save as mp3
+        "extractaudio": True,
+        "audioformat": "mp3",
         "outtmpl": os.path.join(
-            output_path, f"{search_query.replace(' Audio','')}.%(ext)s"
+            output_path, f"{search_query.replace(' Audio', '')}.%(ext)s"
         ),
-        "quiet": False,  # Set to True to suppress output
+        "quiet": False,
     }
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         ydl.download([f"ytsearch:{search_query}"])
 
 
-liked_songs = get_liked_songs()
-
-for song in liked_songs:
+for song in get_liked_songs():
     print("**************************************************")
     print(song)
     download_song(song)
